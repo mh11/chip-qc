@@ -36,7 +36,7 @@ def countExp(cur):
 def createFilter(cur,isNew=True):
     if isNew:
         cur.execute("CREATE TABLE filter(id INT UNIQUE,f_file_path TEXT, status TEXT, started TEXT, finished TEXT, exit_code TEXT,out TEXT,err TEXT)")
-    cur.execute("INSERT INTO filter (id,status) SELECT id,'init' FROM exp")
+    cur.execute("INSERT INTO filter (id,f_file_path,status) SELECT id,file,'init' FROM exp")
 
 def createCorrelation(cur,isNew=True):
     if isNew:
