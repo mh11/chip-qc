@@ -8,6 +8,7 @@ import load_samples
 import db_explore
 import filter_samples
 import correlate_files
+import pca_analysis
 import os.path
 
 def create_parser():
@@ -23,11 +24,13 @@ def create_parser():
 
     # load sub command
     parser_load = subparsers.add_parser('load', help='load sample information')
-    parser_load.add_argument('-m','--manifest',type=str,dest='mf_file',required=True,help="Manifest file with the following headers: DB_ID, EXP_ID,SAMPLE_ID,SAMPLE_NAME,EXP_TYPE,CELL_TYPE,FILE")
+#    parser_load.add_argument('-m','--manifest',type=str,dest='mf_file',required=True,help="Manifest file with the following headers: DB_ID, EXP_ID,SAMPLE_ID,SAMPLE_NAME,EXP_TYPE,CELL_TYPE,FILE")
+    parser_load.add_argument('-f','--file-list',type=str,dest='fl_file',required=True,help="A tab separated file (incl. header) with three (or more) columns: <id> <file> <annotation> [<annotations>]")
 
     # list DB entries
     parser_list = subparsers.add_parser('list', help='list loaded information')
     parser_list.add_argument('-l','--loaded-files',dest='l_file',help="Print loaded files",action='store_true')
+    parser_list.add_argument('-L','--loaded-files-annotated',dest='la_file',help="Print loaded files with annotations",action='store_true')
     parser_list.add_argument('-f','--filtered-files',dest='f_file',help="Print filtered files status",action='store_true')
     parser_list.add_argument('-c','--correlation',dest='c_list',help="Print Correlation job list with file names, status and output",action='store_true')
     parser_list.add_argument('-C','--correlation-by-sample-id',dest='C_list',help="Print Correlation job list with Sample Ids, status and output",action='store_true')
@@ -50,6 +53,9 @@ def create_parser():
     parser_load.add_argument('-c','--correlation-id',type=int,dest='correlation_id',help="Correlation id to process - default: all correlations with missing values are run")
     parser_load.add_argument('-l','--limit',type=int,dest='limit',help="Limit numbers of jobs - default: no limitations")
 
+    # pcr
+    parser_pca = subparsers.add_parser('pca', help='Principal component analysis (PCA) using Pearson correlation results')
+
     return parser
 
 def main(argv=None):
@@ -66,13 +72,15 @@ def main(argv=None):
 #    print "Using DB %s " % (args.db_file,)
 
     if args.sub_cmd == 'load':
-        args.mf_file = os.path.abspath(args.mf_file)
+        args.fl_file = os.path.abspath(args.fl_file)
         load_samples.load(args)
     elif args.sub_cmd == 'list':
         if args.f_file:
             db_explore.filterIds(args)
         elif args.l_file:
             db_explore.loadedIds(args)
+        elif args.la_file:
+            db_explore.loadedAnnotIds(args)
         elif args.c_list:
             db_explore.correlationIds(args)
         elif args.C_list:
@@ -93,6 +101,8 @@ def main(argv=None):
             filter_samples.filter(args)
     elif args.sub_cmd == 'correlate':
         correlate_files.correlate(args)
+    elif args.sub_cmd == 'pca':
+        pca_analysis.analyseCorrelation(args)
 
 
 

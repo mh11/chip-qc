@@ -11,43 +11,76 @@ def runQuery(args,query,postQuery):
     if not os.path.isfile(db_file):
         raise IOError("Database file '%s' does not exist!!! Load data first." % (db_file,))
 
-    with lite.connect(db_file) as con:
+    with lite.connect(db_file,isolation_level=None) as con:
         cur = con.cursor()
         query(cur)
         postQuery(cur)
+        con.commit()
 
 def _filterIdQuery(cur):
-    query = "SELECT f.id AS FILTER_FILE_ID,f.f_file_path AS FILE_PATH, f.status as STATUS FROM filter f "
+    query = "SELECT f.did AS DATA_FILE_ID, f.status as STATUS,f.f_file_path AS FILTERED_FILE_PATH FROM filter f "
     cur.execute(query)
 
 def _loadedIdQuery(cur):
-    query = "SELECT e.id AS LOAD_FILE_ID,e.sample_id AS SAMPLE_ID, e.file AS FILE_PATH FROM exp e "
+    query = "SELECT e.did AS DATA_FILE_ID,e.external_id AS EXTERNAL_ID, e.data_file AS DATA_FILE_PATH FROM data_file e "
+    cur.execute(query)
+
+def _loadedAnnotIdQuery(cur):
+    query = """
+    SELECT e.did AS DATA_FILE_ID,e.external_id AS EXTERNAL_ID,
+    group_concat(d.key || '=' || d.value ) AS ANNOTATIONS, e.data_file AS DATA_FILE_PATH
+    FROM data_file e, data_annotation d
+    WHERE e.did = d.did
+    GROUP BY e.did,e.external_id,e.data_file
+    """
     cur.execute(query)
 
 def _correlationQuery(cur):
     query = """
     SELECT c.corr_id as CORRELATION_ID, f1.f_file_path AS FILE_A, f2.f_file_path FILE_B,c.status AS STATUS,c.out AS OUTPUT
     FROM correlation c, filter f1, filter f2
-    WHERE c.id_a = f1.id
-    AND c.id_b = f2.id
+    WHERE c.did_a = f1.did
+    AND c.did_b = f2.did
     """
     cur.execute(query)
 
 def _correlationSampleQuery(cur):
     query = """
-    SELECT c.corr_id as CORRELATION_ID, f1.exp_id EXPERIMENT_A, f2.exp_id EXPERIMENT_B,c.status AS STATUS,c.out AS OUTPUT
-    FROM correlation c, exp f1, exp f2
-    WHERE c.id_a = f1.id
-    AND c.id_b = f2.id
+    SELECT c.corr_id as CORRELATION_ID, f1.external_id EXTERNAL_ID_A, f2.external_id EXTERNAL_ID_B,
+           c.status AS STATUS, c.out AS OUTPUT
+    FROM correlation c, data_file f1, data_file f2
+    WHERE c.did_a = f1.did
+    AND c.did_b = f2.did
     """
     cur.execute(query)
 
 def _correlationDetailsQuery(id,cur):
+    if None is not None:
+        cur.execute("""
+         SELECT f.c,c.corr_id
+         FROM  correlation c
+         JOIN  data_file d1 ON c.did_a = d1.did
+         JOIN data_file d2 ON c.did_b = d2.did
+         JOIN foo f ON d1.external_id = f.a AND d2.external_id = f.b
+         """)
+        res = cur.fetchall()
+        l = len(res)
+        for i in xrange(0, len(res), 1000):
+            e = (i+1000)
+            print i,e
+#            if i == 0:
+#                continue
+            subList = res[i:(min(l,e))]
+            cur.executemany("UPDATE correlation SET out = ? WHERE corr_id = ?",subList)
+#        for row in res:
+#            cur.execute("UPDATE correlation SET out = ? WHERE corr_id = ?",res[i-1])
+
     query = """
-    SELECT c.corr_id as CORRELATION_ID, f1.exp_id AS EXPERIMENT_A, f2.exp_id EXPERIMENT_B,c.status AS STATUS,c.out AS OUTPUT, c.started, c.finished, c.exit_code, c.err AS ERROR
-    FROM correlation c, exp f1, exp f2
-    WHERE c.id_a = f1.id
-    AND c.id_b = f2.id
+    SELECT c.corr_id as CORRELATION_ID, f1.external_id AS EXTERNAL_ID_A, f2.external_id EXTERNAL_ID_B,
+           c.status AS STATUS, c.started, c.finished, c.exit_code, c.out AS OUTPUT, c.err AS ERROR
+    FROM correlation c, data_file f1, data_file f2
+    WHERE c.did_a = f1.did
+    AND c.did_b = f2.did
     AND c.corr_id = %s
     """
     cur.execute(query % id)
@@ -68,6 +101,9 @@ def filterIds(args):
 
 def loadedIds(args):
     return runQuery(args=args,query=_loadedIdQuery,postQuery=_print)
+
+def loadedAnnotIds(args):
+    return runQuery(args=args,query=_loadedAnnotIdQuery,postQuery=_print)
 
 def correlationIds(args):
     return runQuery(args=args,query=_correlationQuery,postQuery=_print)

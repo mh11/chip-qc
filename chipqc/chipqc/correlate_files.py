@@ -15,8 +15,8 @@ def _loadJobList(con,force=False,limit=-1):
     query = """
         SELECT c.corr_id, f1.f_file_path, f2.f_file_path
         FROM correlation c, filter f1, filter f2
-        WHERE c.id_a = f1.id
-        AND c.id_b = f2.id
+        WHERE c.did_a = f1.did
+        AND c.did_b = f2.did
         """
     if not force:
         query += " AND c.status = 'init' "
@@ -35,8 +35,8 @@ def _loadSelectedJobs(con,force=False,correlations=list(),limit=1):
     query = """
         SELECT c.corr_id, f1.f_file_path, f2.f_file_path
         FROM correlation c, filter f1, filter f2
-        WHERE c.id_a = f1.id
-        AND c.id_b = f2.id
+        WHERE c.did_a = f1.did
+        AND c.did_b = f2.did
         AND c.corr_id >= %s
         """
     if not force:
@@ -72,6 +72,12 @@ def _storeValue(con,id,execOut):
     exitVal = execOut[2]
     out = execOut[3]
     err = execOut[4]
+
+    if out is not None:
+        out = out.strip()
+    if err is not None:
+        err = err.strip()
+
     status='done'
     if exitVal != 0:
         status='error'
