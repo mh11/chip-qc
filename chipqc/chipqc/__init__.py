@@ -9,7 +9,20 @@ import db_explore
 import filter_samples
 import correlate_files
 import pca_analysis
+import enrichment
 import os.path
+import os
+import inspect
+
+# http://stackoverflow.com/questions/3718657/how-to-properly-determine-current-script-directory-in-python/22881871#22881871
+def get_script_dir(follow_symlinks=True):
+    if getattr(sys, 'frozen', False): # py2exe, PyInstaller, cx_Freeze
+        path = os.path.abspath(sys.executable)
+    else:
+        path = inspect.getabsfile(get_script_dir)
+    if follow_symlinks:
+        path = os.path.realpath(path)
+    return os.path.dirname(path)
 
 def create_parser():
     parser = argparse.ArgumentParser(
@@ -55,6 +68,11 @@ def create_parser():
 
     # pcr
     parser_pca = subparsers.add_parser('pca', help='Principal component analysis (PCA) using Pearson correlation results')
+
+    # enrichment
+    parser_enrichment = subparsers.add_parser('enrichment', help='Enrichment')
+    parser_enrichment.add_argument('-o','--out-dir',type=str,dest='out_dir',default='%s/enrichment'%os.getcwd(),help="Output directory of the enrichment results")
+    parser_enrichment.add_argument('-r','--r-file',type=str,dest='r_file',default='%s/enrichment.R'%get_script_dir(),help="R enrichment script")
 
     return parser
 
@@ -103,6 +121,8 @@ def main(argv=None):
         correlate_files.correlate(args)
     elif args.sub_cmd == 'pca':
         pca_analysis.analyseCorrelation(args)
+    elif args.sub_cmd == 'enrichment':
+        enrichment.analyseCorrelation(args)
 
 
 
