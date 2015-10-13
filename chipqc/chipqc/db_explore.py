@@ -4,6 +4,16 @@ _author__ = 'mh719'
 import sqlite3 as lite
 import os.path
 
+def getHelpInfo():
+    return "list loaded information"
+
+def addArguments(parser):
+    parser.add_argument('-l','--loaded-files',dest='l_file',help="Print loaded files",action='store_true')
+    parser.add_argument('-L','--loaded-files-annotated',dest='la_file',help="Print loaded files with annotations",action='store_true')
+    parser.add_argument('-f','--filtered-files',dest='f_file',help="Print filtered files status",action='store_true')
+    parser.add_argument('-c','--correlation',dest='c_list',help="Print Correlation job list with file names, status and output",action='store_true')
+    parser.add_argument('-C','--correlation-by-sample-id',dest='C_list',help="Print Correlation job list with Sample Ids, status and output",action='store_true')
+    parser.add_argument('-p','--details',type=int,dest='detail_id',help="Detailed information about job id")
 
 
 def runQuery(args,query,postQuery):
@@ -114,3 +124,21 @@ def correlationSampleIds(args):
 def correlationDetails(args,id):
     return runQuery(args=args,query=(lambda x:_correlationDetailsQuery(id,x)),postQuery=_print)
 
+def run(parser,args):
+    if args.f_file:
+        filterIds(args)
+    elif args.l_file:
+        loadedIds(args)
+    elif args.la_file:
+        loadedAnnotIds(args)
+    elif args.c_list:
+        correlationIds(args)
+    elif args.C_list:
+        correlationSampleIds(args)
+    elif 'detail_id' in args and args.detail_id != None:
+        correlationDetails(args,args.detail_id)
+    else:
+        print "One option required!!!"
+        parser.print_help()
+        return 1
+    return 0

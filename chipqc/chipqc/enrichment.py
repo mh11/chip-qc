@@ -3,7 +3,13 @@ __author__ = 'mh719'
 
 
 from exec_util import execCmd
+import os
 
+def getHelpInfo():
+    return "Enrichment"
+
+def addArguments(parser):
+    parser.add_argument('-o','--out-dir',type=str,dest='out_dir',default='%s/enrichment'%os.getcwd(),help="Output directory of the enrichment results")
 
 
 def analyseCorrelation(args):
@@ -23,3 +29,7 @@ def analyseCorrelation(args):
 
     print (res)
     return None
+
+def run(parser,args):
+    analyseCorrelation(args)
+    return 0

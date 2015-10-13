@@ -6,6 +6,16 @@ import time
 import sys
 from exec_util import execCmd
 
+def getHelpInfo():
+    return "[OPTIONAL STEP] Filter wiggle files"
+
+def addArguments(parser):
+    parser.add_argument('-s','--skip',dest='skip',help="Skip filtering - use original files",action='store_true')
+    parser.add_argument('-r','--regulatory-build',type=str,dest='reg_build',help="RegBuild.bb file")
+    parser.add_argument('-o','--out-dir',type=str,dest='out_dir',default='wiggle-filtered',help="Output directory of the filtered wiggle file")
+    parser.add_argument('-f','--file-id',type=int,dest='filter_id',help="File id to process - default all files are processed")
+
+
 def skipFilter(args):
     db_file=args.db_file
     out_dir = args.out_dir
@@ -88,3 +98,15 @@ def filter(args):
             now=time.time()
             cur.execute("UPDATE filter SET status=?, finished=?,exit_code=? WHERE did = ?",("done",now,res,fid))
             con.commit()
+
+
+def run(parser,args):
+    args.out_dir = os.path.abspath(args.out_dir)
+    if args.skip:
+        skipFilter(args)
+    elif 'reg_build' not in args:
+        print ("Regulatory build parameter missing")
+        return 1
+    else:
+        filter(args)
+    return 0

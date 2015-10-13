@@ -8,6 +8,12 @@ from numpy import *
 from matplotlib.mlab import PCA
 import pygal
 
+def getHelpInfo():
+    return "Principal component analysis (PCA) using Pearson correlation results"
+
+def addArguments(parser):
+    ## Don't do anything
+    parser = parser
 
 def _getCorrData(cur):
     cur.execute("SELECT d1.did,d2.did,c FROM foo f, data_file d1, data_file d2 WHERE d1.external_id = f.a and d2.external_id = f.b")
@@ -150,3 +156,7 @@ def analyseCorrelation(args):
         _doCorrelation(idIdx,annot,mtx,separate='CELL_TYPE',group='EXPERIMENT_TYPE')
 
     return None
+
+def run(parser,args):
+    analyseCorrelation(args)
+

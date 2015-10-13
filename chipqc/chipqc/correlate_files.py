@@ -7,6 +7,15 @@ import time
 import sys
 from exec_util import execCmd
 
+def getHelpInfo():
+    return "Calculate Pearson correlation"
+
+def addArguments(parser):
+    parser.add_argument('-w','--wiggle-tool',type=str,dest='wig_tool',default="wiggletools",help="Set path to specific wiggle tool to use")
+    parser.add_argument('-f','--force-all',dest='force',help="Force recalculation of values",action='store_true')
+    parser.add_argument('-c','--correlation-id',type=int,dest='correlation_id',help="Correlation id to process - default: all correlations with missing values are run")
+    parser.add_argument('-l','--limit',type=int,dest='limit',help="Limit numbers of jobs - default: no limitations")
+
 def _fetchList(con):
     res = con.fetchall()
     return res
@@ -113,3 +122,6 @@ def correlate(args):
         reslist = _processJobs(tool,corrList,lambda id,y: _storeValue(cur,id,y),executeCmd)
 
 
+def run(parser,args):
+    correlate(args)
+    return 0

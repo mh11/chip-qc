@@ -4,6 +4,12 @@ import csv
 import sqlite3 as lite
 import os.path
 
+def getHelpInfo():
+    return 'load sample information'
+
+def addArguments(parser):
+    parser.add_argument('-f','--file-list',type=str,dest='fl_file',required=True,help="A tab separated file (incl. header) with three (or more) columns: <id> <file> <annotation> [<annotations>]")
+
 def parseCsv(file):
     exp = list()
 
@@ -128,3 +134,6 @@ def load(args):
 
     print("Done")
 
+def run(parser,args):
+    args.fl_file = os.path.abspath(args.fl_file)
+    load(args)
