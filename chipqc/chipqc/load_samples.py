@@ -3,6 +3,7 @@ __author__ = 'mh719'
 import csv
 import sqlite3 as lite
 import os.path
+import chipqc_db
 
 def getHelpInfo():
     return 'load sample information'
@@ -32,105 +33,83 @@ def parseCsv(file):
                 exp.append(line)
     return exp
 
-def createExp(cur,data,isNew=True):
-    ## DON'T drop automatically
-#    cur.execute("DROP TABLE IF EXISTS exp")
-    currMaxId = 0
-    if isNew:
-#        cur.execute("CREATE TABLE exp(id INT UNIQUE, exp_id TEXT UNIQUE, sample_id TEXT, sample_name TEXT,exp_type TEXT, cell_type TEXT, file TEXT)")
-        cur.execute("CREATE TABLE data_file(did INT UNIQUE, external_id TEXT UNIQUE, data_file TEXT UNIQUE)")
-        cur.execute("CREATE TABLE data_annotation(did INT, key TEXT,value TEXT)")
-    else:
-        cur.execute("SELECT MAX(did) FROM data_file")
-        currMaxId = cur.fetchone()[0]
-        if currMaxId == None:
-            currMaxId = 0
+def createExp(db,data):
 
+    currMaxId = db.getMaxDataId()
+    extIds = set([ext for did,ext,f in db.getFiles()])
     annot_desc = []
-    dQuery = "INSERT INTO data_file (did,external_id,data_file) VALUES(?,?,?)"
-    aQuery = "INSERT INTO data_annotation(did,key,value) VALUES (?,?,?)"
+    file_tupels = tuple()
+    annot_tupels = tuple()
 
     for idx,row in enumerate(data):
         if idx == 0:
             annot_desc = row
-        else:
+        elif row[0] not in extIds:
+            print (row[0])
             qid = currMaxId + idx
-            qdata = [qid,row[0],row[1]]
-            cur.execute(dQuery, qdata)
+            file_tupels += ((qid,row[0],row[1]),)
             for aidx,ae in enumerate(annot_desc):
+                annot_tupels += ((qid,ae,row[2+aidx]),)
+    ## Store
+    db.addDataFileAll(file_tupels)
+    db.addAnnotationAll(annot_tupels)
 
-                qdata = [qid,ae,row[2+aidx]]
-                cur.execute(aQuery,qdata)
+def countExp(db):
+    return db.getFileCount()
 
-def countExp(cur):
-    cur.execute("SELECT count(*) FROM data_file")
-    (cnt,) = cur.fetchone()
-    return cnt
+def createFilter(db):
+    filtCurr = set([did for did,f,s in db.getFilesFiltered()])
+    filtered = [ (did,f,'init') for (did,ext,f) in db.getFiles() if did not in filtCurr]
+    db.addFileFilteredAll(filtered)
 
-def createFilter(cur,isNew=True):
-    if isNew:
-        cur.execute("CREATE TABLE filter(did INT UNIQUE,f_file_path TEXT, status TEXT, started TEXT, finished TEXT, exit_code TEXT,out TEXT,err TEXT)")
-    cur.execute("INSERT INTO filter (did,f_file_path,status) SELECT did,data_file,'init' FROM data_file d WHERE d.did not in (SELECT did from filter)")
-
-def createCorrelation(cur,isNew=True):
-    currentIdx = set()
+def createCorrelation(db):
+    corrRes = db.getCorrelationIds()
+    currentIdx = set([ (str(a)+"_"+str(b)) for cid,a,b in corrRes])
     maxId = 0
-    if isNew:
-        cur.execute("CREATE TABLE correlation(corr_id INT,did_a INT, did_b INT, status TEXT, started TEXT, finished TEXT, exit_code TEXT, out TEXT, err TEXT,run_count INT DEFAULT 0) ")
-    else:
-        cur.execute("SELECT corr_id,did_a,did_b FROM correlation")
-        for x in cur.fetchall():
-            currentIdx.add(str(x[1])+"_"+str(x[2]))
-            maxId = max(x[0],maxId)
+    if len(corrRes) > 0:
+        maxId = max([cid for cid,a,b, in corrRes])
 
-    cur.execute("SELECT did FROM data_file ORDER BY did ASC")
-    ids = list(row[0] for row in cur.fetchall())
-    corr_cnt = 1
+    ids = sorted(list(did for did,ext,f in db.getFiles()))
+    corr_cnt = 0
     for a in ids:
         corr_pair = tuple()
         for b in ids:
             if a < b: # only one side of the matrix
                 if (str(a) + "_" +str(b)) not in currentIdx:
-                    corr_pair += ((maxId+corr_cnt,a,b),)
                     corr_cnt += 1
-        cur.executemany("INSERT INTO correlation (corr_id,did_a, did_b,status,run_count) VALUES (?,?,?,'init',0)",corr_pair)
+                    nid = maxId+corr_cnt
+                    corr_pair += ((nid,a,b),)
+        db.addCorrelationInitAll(corr_pair)
+#        cur.executemany("INSERT INTO correlation (corr_id,did_a, did_b,status,run_count) VALUES (?,?,?,'init',0)",corr_pair)
     return corr_cnt
-
-def countCorr(cur):
-    cur.execute("SELECT count(*) from correlation")
-    (cnt,) = cur.fetchone()
-    return cnt
 
 def load(args):
     db_file=args.db_file
+    db = chipqc_db.ChipQcDbSqlite(path=db_file)
+
     dataFile = args.fl_file
 
-    new_db = (not os.path.isfile(db_file))
+    # new_db = (not os.path.isfile(db_file))
 
     print "Loading file %s " %(os.path.abspath(dataFile),)
     exp = parseCsv(file=dataFile)
     print("Entries found in file: %s " % (len(exp)-1))
 
 ## Store in DB
-    with lite.connect(db_file) as con:
-        cur = con.cursor()
+    print("Loading data into DB ... ")
+    createExp(db,exp)
+    dbExpCnt = countExp(db)
 
-        ## Create EXP table
-        print("Loading data into DB ... ")
-        createExp(cur,exp,isNew=new_db)
-        con.commit()
-        dbExpCnt = countExp(cur)
+    print("Entries found in DB: %s " % dbExpCnt)
 
-        print("Entries found in DB: %s " % dbExpCnt)
+       ## Filter
+    createFilter(db)
 
-        ## Filter
-        createFilter(cur,isNew=new_db)
+       # ## Create correlation table
+    newCnt = createCorrelation(db)
 
-       ## Create correlation table
-        newCnt = createCorrelation(cur,isNew=new_db)
-
-        corrCnt = countCorr(cur)
-        print ("Prepared correlations: %s new from %s" % (newCnt,corrCnt))
+    corrCnt = db.getCorrelationCount()
+    print ("Prepared correlations: %s new from %s" % (newCnt,corrCnt))
 
     print("Done")
 
