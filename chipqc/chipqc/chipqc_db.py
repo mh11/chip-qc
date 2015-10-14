@@ -114,8 +114,55 @@ class ChipQcDbSqlite:
         with open_db_connection(self.path) as cur:
             cur.executemany("INSERT INTO correlation (corr_id,did_a, did_b,status,run_count) VALUES (?,?,?,'init',0)",values)
 
+    def getCorrelations(self):
+        with open_db_connection(self.path) as cur:
+            cur.execute("SELECT corr_id,did_a, did_b,status,out from correlation")
+            return cur.fetchall()
+
+    def getCorrelationsDetails(self, id):
+        with open_db_connection(self.path) as cur:
+            cur.execute("""
+            SELECT corr_id,did_a, did_b,status AS STATUS,started AS STARTED,
+            finished AS FINISHED,exit_code AS EXIT_CODE,out AS OUTPUT,err AS ERROR
+            FROM correlation
+            WHERE corr_id = ?
+            """,(id,))
+            data = cur.fetchall()
+            desc = list(map(lambda x: str(x[0]), cur.description))
+            return (desc,data)
+
     def getCorrelationCount(self):
         with open_db_connection(self.path) as cur:
             cur.execute("SELECT count(*) from correlation")
             (cnt,) = cur.fetchone()
             return cnt
+
+    def getFilesAllAnnotated(self):
+        with open_db_connection(self.path) as cur:
+            query = """
+            SELECT e.did AS DATA_FILE_ID,e.external_id AS EXTERNAL_ID,
+        group_concat(k.key || '=' || d.value ) AS ANNOTATIONS, e.data_file AS DATA_FILE_PATH
+        FROM data_file e, data_key k, data_annotation d
+        WHERE e.did = d.did
+        AND d.kid = k.kid
+        GROUP BY e.did,e.external_id,e.data_file
+            """
+            cur.execute(query)
+            data = cur.fetchall()
+            desc = list(map(lambda x: str(x[0]), cur.description))
+            return (desc,data)
+
+    # def getFilesCorrelations(self):
+    #     with open_db_connection(self.path) as cur:
+    #         query = """
+    #             SELECT c.corr_id as CORRELATION_ID, f1.f_file_path AS FILE_A,
+    #             f2.f_file_path FILE_B,c.status AS STATUS,c.out AS OUTPUT
+    #             FROM correlation c, filter f1, filter f2
+    #             WHERE c.did_a = f1.did
+    #             AND c.did_b = f2.did
+    #             """
+    #         cur.execute(query)
+    #         data = cur.fetchall()
+    #         desc = list(map(lambda x: str(x[0]), cur.description))
+    #         return (desc,data)
+
