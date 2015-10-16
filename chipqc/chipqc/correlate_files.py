@@ -6,6 +6,7 @@ import os
 import time
 import sys
 from exec_util import execCmd
+import chipqc_db
 
 def getHelpInfo():
     return "Calculate Pearson correlation"
@@ -16,53 +17,34 @@ def addArguments(parser):
     parser.add_argument('-c','--correlation-id',type=int,dest='correlation_id',help="Correlation id to process - default: all correlations with missing values are run")
     parser.add_argument('-l','--limit',type=int,dest='limit',help="Limit numbers of jobs - default: no limitations")
 
-def _fetchList(con):
-    res = con.fetchall()
-    return res
+def _loadJobList(db,force=False,limit=-1):
+    filter_dict = { id:file for (id,file, stat ) in db.getFilesFiltered()}
+    if force:
+        res = db.getCorrelations(limit=limit)
+    else:
+        res = db.getCorrelationOfStatus('init',limit=limit)
+    f_list = [ (id,filter_dict[a],filter_dict[b])  for (id,a,b,stat,out) in res ]
+    return f_list
 
-def _loadJobList(con,force=False,limit=-1):
-    query = """
-        SELECT c.corr_id, f1.f_file_path, f2.f_file_path
-        FROM correlation c, filter f1, filter f2
-        WHERE c.did_a = f1.did
-        AND c.did_b = f2.did
-        """
-    if not force:
-        query += " AND c.status = 'init' "
-
-    if limit>=0:
-        query += "ORDER BY c.corr_id LIMIT %s" % limit
-
-    con.execute(query)
-    return _fetchList(con)
-
-def _loadSelectedJobs(con,force=False,correlations=list(),limit=1):
+def _loadSelectedJobs(db,force=False,correlations=list(),limit=1):
     retList = list()
+    filter_dict = { id:file for (id,file, stat ) in db.getFilesFiltered()}
+
     if limit < 0:
         limit = 1
 
-    query = """
-        SELECT c.corr_id, f1.f_file_path, f2.f_file_path
-        FROM correlation c, filter f1, filter f2
-        WHERE c.did_a = f1.did
-        AND c.did_b = f2.did
-        AND c.corr_id >= %s
-        """
-    if not force:
-        query += " AND c.status = 'init' "
-
-    query += " ORDER BY c.corr_id LIMIT %s" % limit
-
     for id in correlations:
-        con.execute(query % id)
-        lst = _fetchList(con)
-        retList.extend(lst)
+        res = db.getCorrelationRegion(start_id = int(id), end_id_excl=(int(id)+limit) )
+        f_list = [ (id,filter_dict[a],filter_dict[b])  for (id,a,b,stat,out) in res if (force or stat == 'init') ]
+        retList.extend(f_list)
+
     return retList
 
 def executeCmd(cmd,storeFunction):
     res=[-1,"TEST",cmd]
     resList = list()
     resList.append(time.time())
+    print (cmd)
     res = execCmd(cmd)
     resList.append(time.time())
     resList.extend(res)
@@ -74,7 +56,7 @@ def _processJobs(wigTool,jobList,storeFunction,execFunction):
     reslist = map(lambda id: execFunction(jobCmds[id],lambda x: storeFunction(id,x)),jobCmds.keys())
     return reslist
 
-def _storeValue(con,id,execOut):
+def _storeValue(db,id,execOut):
     print "%s finished " % id
     start=execOut[0]
     end=execOut[1]
@@ -91,36 +73,35 @@ def _storeValue(con,id,execOut):
     if exitVal != 0:
         status='error'
 
-    query = """
-    UPDATE correlation
-    SET status=?,started=?, finished=?,exit_code=?, out=?,err=?
-    WHERE corr_id = ?
-  """
-    con.execute(query,(status,start,end,exitVal,out,err,id))
+  #   query = """
+  #   UPDATE correlation
+  #   SET status=?,started=?, finished=?,exit_code=?, out=?,err=?
+  #   WHERE corr_id = ?
+  # """
+    db.getCorrelationsDetails(((status,start,end,exitVal,out,err,id),))
+#    con.execute(query,(status,start,end,exitVal,out,err,id))
     return id
 
 def correlate(args):
     force = args.force
     tool=args.wig_tool
     db_file=args.db_file
+    db = chipqc_db.ChipQcDbSqlite(path=db_file)
+
     limit=-1
     if 'limit' in args and args.limit != None:
         limit = args.limit
 
 ## Find required Correlation to run
     corrList= list()
-    with lite.connect(db_file,timeout=30.0) as con:
-        cur = con.cursor()
-        if 'correlation_id' in args and args.correlation_id != None:
-            corrList.append(args.correlation_id)
-            corrList = _loadSelectedJobs(cur,force=force,correlations=corrList, limit=limit)
-        else:
-            corrList = _loadJobList(cur,force=force,limit=limit)
+    if 'correlation_id' in args and args.correlation_id != None:
+        corrList.append(args.correlation_id)
+        corrList = _loadSelectedJobs(db,force=force,correlations=corrList, limit=limit)
+    else:
+        corrList = _loadJobList(db,force=force,limit=limit)
 
-        print "Processing jobs ..."
-## Run correlations
-        reslist = _processJobs(tool,corrList,lambda id,y: _storeValue(cur,id,y),executeCmd)
-
+    print "Processing %s jobs ..." % (len(corrList))
+    reslist = _processJobs(tool,corrList,lambda id,y: _storeValue(db,id,y),executeCmd)
 
 def run(parser,args):
     correlate(args)

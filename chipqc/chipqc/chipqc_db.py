@@ -6,7 +6,7 @@ import sys
 #http://stackoverflow.com/questions/3783238/python-database-connection-close
 @contextmanager
 def open_db_connection(connection_string):
-    connection = lite.connect(connection_string)
+    connection = lite.connect(connection_string, timeout=30.0)
     cursor = connection.cursor()
     try:
         yield cursor
@@ -80,6 +80,8 @@ class ChipQcDbSqlite:
                     self.key_id[key] = maxId
         return self.key_id[key]
 
+####################
+## Files
     def getFileCount(self):
         with open_db_connection(self.path) as cur:
             cur.execute("SELECT count(*) FROM data_file")
@@ -91,18 +93,35 @@ class ChipQcDbSqlite:
             cur.execute("SELECT did, external_id, data_file FROM data_file")
             return cur.fetchall()
 
+####################
+## Filter
     # did,file_path,status
     def getFilesFiltered(self):
         with open_db_connection(self.path) as cur:
             cur.execute("SELECT did, f_file_path, status FROM filter")
             return cur.fetchall()
 
+    # did,file_path,status
+    def getFilesFilteredDetails(self):
+        with open_db_connection(self.path) as cur:
+            cur.execute("SELECT did, f_file_path, status, started, finished, exit_code, out, err  FROM filter")
+            data = cur.fetchall()
+            desc = list(map(lambda x: str(x[0]), cur.description))
+            return (desc,data)
+
     ## Requires tubles of (did,file_path,status)
     def addFileFilteredAll(self, valueList):
         with open_db_connection(self.path) as cur:
-#            cur.execute("INSERT INTO filter (did,f_file_path,status) SELECT did,data_file,'init' FROM data_file d WHERE d.did not in (SELECT did from filter)")
             cur.executemany("INSERT INTO filter (did,f_file_path,status) VALUES (?,?,?)",valueList)
 
+    def updateFileFilter(self,update):
+        with open_db_connection(self.path) as cur:
+            cur.executemany(
+                "UPDATE filter SET status=?, started=?,f_file_path=?,finished=?,exit_code=?,out=?,err=? WHERE did = ?",
+            update)
+
+####################
+## Correlation
     # corr_id, did_a, did_b
     def getCorrelationIds(self):
         with open_db_connection(self.path) as cur:
@@ -114,10 +133,46 @@ class ChipQcDbSqlite:
         with open_db_connection(self.path) as cur:
             cur.executemany("INSERT INTO correlation (corr_id,did_a, did_b,status,run_count) VALUES (?,?,?,'init',0)",values)
 
-    def getCorrelations(self):
+    def getCorrelations(self, limit=-1):
         with open_db_connection(self.path) as cur:
-            cur.execute("SELECT corr_id,did_a, did_b,status,out from correlation")
+            if limit > 0:
+                cur.execute("SELECT corr_id,did_a, did_b,status,out from correlation LIMIT %s " % (limit,))
+            else:
+                cur.execute("SELECT corr_id,did_a, did_b,status,out from correlation")
             return cur.fetchall()
+
+
+    def getCorrelationRegion(self, start_id, end_id_excl):
+        with open_db_connection(self.path) as cur:
+            cur.execute("""
+            SELECT corr_id,did_a, did_b,status,out
+            FROM correlation
+            WHERE corr_id >= ?
+            AND corr_id < ?
+            ORDER BY corr_id
+            """,(start_id,end_id_excl))
+            return cur.fetchall()
+
+    def getCorrelationOfStatus(self, status,limit=-1):
+        with open_db_connection(self.path) as cur:
+            if limit > 0:
+                cur.execute("""
+                SELECT corr_id,did_a, did_b,status,out
+                FROM correlation
+                WHERE status = ?
+                ORDER BY corr_id
+                LIMIT %s
+                """ % limit,(status,))
+            else:
+                cur.execute("""
+                SELECT corr_id,did_a, did_b,status,out
+                FROM correlation
+                WHERE status = ?
+                ORDER BY corr_id
+                """,(status,))
+
+            return cur.fetchall()
+
 
     def getCorrelationsDetails(self, id):
         with open_db_connection(self.path) as cur:
@@ -131,12 +186,24 @@ class ChipQcDbSqlite:
             desc = list(map(lambda x: str(x[0]), cur.description))
             return (desc,data)
 
+    def updateCorrelationDetails(self, update):
+        with open_db_connection(self.path) as cur:
+            query = """
+            UPDATE correlation
+            SET status=?,started=?, finished=?,exit_code=?, out=?,err=?
+            WHERE corr_id = ? """
+            cur.executemany(query,update)
+
+
     def getCorrelationCount(self):
         with open_db_connection(self.path) as cur:
             cur.execute("SELECT count(*) from correlation")
             (cnt,) = cur.fetchone()
             return cnt
 
+
+####################
+## Annotation
     def getFilesAllAnnotated(self):
         with open_db_connection(self.path) as cur:
             query = """

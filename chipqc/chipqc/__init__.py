@@ -61,11 +61,11 @@ def main(argv=None):
     subcmds = { a:b for (a,b) in cmdLst }
 
     if args.sub_cmd in subcmds.keys():
-        subcmds[args.sub_cmd].run(parser,args)
+        return subcmds[args.sub_cmd].run(parser,args)
     else:
         print ("Command %s not registered!!!"%args.sub_cmd)
         parser.print_help( )
 
 if __name__ == "__main__":
-    main()
+    ret = main()
 

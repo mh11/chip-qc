@@ -12,6 +12,7 @@ def addArguments(parser):
     parser.add_argument('-l','--loaded-files',dest='l_file',help="Print loaded files",action='store_true')
     parser.add_argument('-L','--loaded-files-annotated',dest='la_file',help="Print loaded files with annotations",action='store_true')
     parser.add_argument('-f','--filtered-files',dest='f_file',help="Print filtered files status",action='store_true')
+    parser.add_argument('-F','--filtered-files-details',dest='f_file_detail',help="Print filtered files detailed status",action='store_true')
     parser.add_argument('-c','--correlation',dest='c_list',help="Print Correlation job list with file names, status and output",action='store_true')
     parser.add_argument('-C','--correlation-by-sample-id',dest='C_list',help="Print Correlation job list with Sample Ids, status and output",action='store_true')
     parser.add_argument('-p','--details',type=int,dest='detail_id',help="Detailed information about job id")
@@ -49,6 +50,10 @@ def filterIds(db):
     data = [[a,c,b] for a,b,c in db.getFilesFiltered()]
     _print(["DATA_FILE_ID","STATUS","FILTERED_FILE_PATH"],data)
 
+def filterDetailsIds(db):
+    (desc,data) = db.getFilesFilteredDetails()
+    _print(desc,data)
+
 def loadedIds(db):
     _print(["DATA_FILE_ID","EXTERNAL_ID","DATA_FILE_PATH"],
            db.getFiles())
@@ -81,6 +86,8 @@ def run(parser,args):
     db = chipqc_db.ChipQcDbSqlite(path=db_file)
     if args.f_file:
         filterIds(db)
+    elif args.f_file_detail:
+        filterDetailsIds(db)
     elif args.l_file:
         loadedIds(db)
     elif args.la_file:
