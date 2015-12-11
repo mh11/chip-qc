@@ -78,7 +78,8 @@ def _storeValue(db,id,execOut):
   #   SET status=?,started=?, finished=?,exit_code=?, out=?,err=?
   #   WHERE corr_id = ?
   # """
-    db.getCorrelationsDetails(((status,start,end,exitVal,out,err,id),))
+    db.updateCorrelationDetails(((status,start,end,exitVal,out,err,id),))
+#    db.getCorrelationsDetails(((status,start,end,exitVal,out,err,id),))
 #    con.execute(query,(status,start,end,exitVal,out,err,id))
     return id
 

@@ -9,7 +9,8 @@ def getHelpInfo():
     return 'load sample information'
 
 def addArguments(parser):
-    parser.add_argument('-f','--file-list',type=str,dest='fl_file',required=True,help="A tab separated file (incl. header) with three (or more) columns: <id> <file> <annotation> [<annotations>]")
+    parser.add_argument('-f','--file-list',type=str,dest='fl_file',required=True,help="Load / Update a tab separated file (incl. header) with three (or more) columns: <id> <file> <annotation> [<annotations>]")
+#    parser.add_argument('-F','--files-add',type=str,dest='fa_file',required=False,help="Add (and ignore row if exists) a tab separated file (incl. header) with three (or more) columns: <id> <file> <annotation> [<annotations>]")
 
 def parseCsv(file):
     exp = list()
@@ -83,15 +84,10 @@ def createCorrelation(db):
 #        cur.executemany("INSERT INTO correlation (corr_id,did_a, did_b,status,run_count) VALUES (?,?,?,'init',0)",corr_pair)
     return corr_cnt
 
-def load(args):
-    db_file=args.db_file
-    db = chipqc_db.ChipQcDbSqlite(path=db_file)
+def load(db,file):
+    dataFile = os.path.abspath(file)
 
-    dataFile = args.fl_file
-
-    # new_db = (not os.path.isfile(db_file))
-
-    print "Loading file %s " %(os.path.abspath(dataFile),)
+    print "Loading file %s " %(dataFile,)
     exp = parseCsv(file=dataFile)
     print("Entries found in file: %s " % (len(exp)-1))
 
@@ -113,6 +109,36 @@ def load(args):
 
     print("Done")
 
+def addFile(db, file): # NOT USED
+    dataFile = os.path.abspath(file)
+    print "Loading file %s " %(dataFile,)
+    exp = parseCsv(file=dataFile)
+    print("Entries found in file: %s " % (len(exp)-1))
+
+    # did, external_id, data_file
+    curr_files_dict= set([ext for (did,ext,df) in db.getFiles()])
+    new_exp = [row for idx,row in enumerate(exp) if idx == 0 or row[0] not in curr_files_dict ]
+    print("Loading %s data into DB ... " % (len(new_exp)-1,))
+    createExp(db,new_exp)
+    dbExpCnt = countExp(db)
+    print("Entries found in DB: %s " % dbExpCnt)
+
+    preFilter = len(db.getFilesFiltered())
+    createFilter(db)
+    print("Filter update from %s to %s " % (preFilter,len(db.getFilesFiltered())))
+
+    newCnt = createCorrelation(db)
+    corrCnt = db.getCorrelationCount()
+    print ("Prepared correlations: %s new from %s" % (newCnt,corrCnt))
+    print("Done")
+
 def run(parser,args):
-    args.fl_file = os.path.abspath(args.fl_file)
-    load(args)
+    db_file=args.db_file
+    db = chipqc_db.ChipQcDbSqlite(path=db_file)
+
+    if 'fl_file' in args and args.fl_file is not None:
+        load(db,args.fl_file)
+    # elif 'fa_file' in args and args.fa_file is not None:
+    #     addFile(db,args.fa_file)
+    else:
+        parser.print_help()
