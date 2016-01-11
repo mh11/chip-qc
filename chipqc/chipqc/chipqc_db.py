@@ -181,7 +181,7 @@ class ChipQcDbSqlite:
             finished AS FINISHED,exit_code AS EXIT_CODE,out AS OUTPUT,err AS ERROR
             FROM correlation
             WHERE corr_id = ?
-            """,(id,))
+            """,(int(id),))
             data = cur.fetchall()
             desc = list(map(lambda x: str(x[0]), cur.description))
             return (desc,data)
