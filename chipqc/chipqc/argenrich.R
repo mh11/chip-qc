@@ -118,7 +118,7 @@ if(args$counts == FALSE | args$counts == "IP")
  
    else
    {
-    png(file = args$plot)
+    png(file = paste(args$outdir,"/",args$plot,sep=""))
    }
    plot(y = cs1/s1, x = (1:n)/n, main = "Cumulative percentage enrichment in each channel", ylab = "Percentage of tags", xlab = "Percentage of bins", col = "darkblue", lwd = 3, ty="l")
    lines(y = cs2/s2, x = (1:n)/n, col = "red", lwd = 3)
