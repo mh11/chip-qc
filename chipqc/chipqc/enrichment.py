@@ -17,6 +17,20 @@ def analyseCorrelation(args):
     r_file=args.r_file
     out_dir=args.out_dir
 
+    ## TODO implementß
+    ## Calculate mean value for each BIN
+    ## INPUT
+    ##   -> calculate mean
+    ## IP files
+    ##   -> calculate mean
+    ##
+    ## wiggletools apply_paste mean.txt meanI regions.chr.bed BW
+
+    ## execute Enrichment R script to
+    ##  -> Plot + result file
+    ##  -> read result file and put into DB
+
+
     cmdTemplate=" Rscript {0} --db {1} --out {2}"
     cmd=cmdTemplate.format(r_file,db_file,out_dir)
     res = execCmd(cmd)
