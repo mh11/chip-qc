@@ -12,6 +12,7 @@ import filter_samples
 import correlate_files
 import pca_analysis
 import enrichment
+import coverage_mean
 import os
 import inspect
 
@@ -28,7 +29,8 @@ def get_script_dir(follow_symlinks=True):
 def create_parser(subcmds):
     parser = argparse.ArgumentParser(
         description='ChIP-seq QC package',
-        epilog='chipqc <cmd> -h'
+        epilog='chipqc <cmd> -h',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
     parser.add_argument('-d','--db',type=str,dest='db_file', default='chip-seq-qc.db',help="Database file for analysis")
@@ -49,6 +51,7 @@ def main(argv=None):
         ('filter',filter_samples),
         ('correlate',correlate_files),
         ('pca',pca_analysis),
+        ('mean-coverage',coverage_mean),
         ('enrichment',enrichment)]
 
     parser = create_parser(cmdLst)
