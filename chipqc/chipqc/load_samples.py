@@ -39,22 +39,24 @@ def createExp(db,data):
 
     currMaxId = db.getMaxDataId()
     extIds = set([ext for did,ext,f in db.getFiles()])
-    annot_desc = []
     file_tupels = tuple()
-    annot_tupels = tuple()
+    annot_lst = list()
 
     for idx,row in enumerate(data):
         if idx == 0:
-            annot_desc = row
+            if len(row) > 0:
+                annot_lst.append(row)
         elif row[0] not in extIds:
             print (row[0])
             qid = currMaxId + idx
             file_tupels += ((qid,row[0],row[1]),)
-            for aidx,ae in enumerate(annot_desc):
-                annot_tupels += ((qid,ae,row[2+aidx]),)
+        if idx > 0:
+            if len(row) > 2:
+                annot_lst.append( [row[0]] + row[2:])
     ## Store
     db.addDataFileAll(file_tupels)
-    db.addAnnotationAll(annot_tupels)
+    addAnnotate(db, annot_lst)
+#    db.addAnnotationAll(annot_tupels)
 
 def countExp(db):
     return db.getFileCount()
@@ -139,23 +141,50 @@ def annotateFile(db, file):
     print "Loading file %s " %(dataFile,)
     exp = parseCsv(file=dataFile, annotOffset=1)
     print("Entries found in file: %s " % (len(exp)-1))
+    addAnnotate(db,exp)
+
+def addAnnotate(db, data): ## data: [external_id, Annotation, ...]
+
+    ## internal ID lookup
     ext_dict = { ext:did for did,ext,f in db.getFiles() }
 
-    new_annot = [row for idx,row in enumerate(exp) if idx == 0 or row[0] in ext_dict.keys() ]
-    print("Loading %s rows of annotations into DB ... " % (len(new_annot)-1,))
+    ## idx [internal ID] of idx [annotation key] for annotation lookup
+    curr_annot = {}
+    for r in db.getAnnotations():
+        if r[0] not in curr_annot.keys():
+           curr_annot[r[0]] = {r[2]:r}
+        else:
+            curr_annot[r[0]][r[2]] = r
+
+## ensure they are in DB
+    not_in_db = [row for idx,row in enumerate(data) if idx > 0 and row[0] not in ext_dict.keys() ]
+    if len(not_in_db) > 0:
+        print("External IDs not found for rows:")
+        print(not_in_db)
+        raise Exception("ID's not found in DB: {0}".format(";".join([r[0] for r in not_in_db])))
+
+    annnot = [row for idx,row in enumerate(data) if idx == 0 or row[0] in ext_dict.keys() ]
+    print("Loading %s rows of annotations into DB ... " % (len(annnot)-1,))
 
     annot_tupels = tuple()
-    for idx,row in enumerate(new_annot):
+    for idx,row in enumerate(annnot):
         if idx == 0:
             annot_desc = row
-            print(annot_desc)
         elif row[0] in ext_dict.keys():
-            print (row[0])
             qid = ext_dict[row[0]]
             for aidx,ae in enumerate(annot_desc):
                 annot_tupels += ((qid,ae,row[1+aidx]),)
-    print(annot_tupels)
-    db.addAnnotationAll(annot_tupels)
+
+    update_annot = [row for row in annot_tupels
+                    if row[0] in curr_annot.keys() and  row[1] in curr_annot[row[0]].keys() ]
+
+    new_annot = [row for row in annot_tupels
+                    if row[0] not in curr_annot.keys() or row[1] not in curr_annot[row[0]].keys() ]
+
+    print("New %s" % len(new_annot))
+    db.addAnnotationAll(new_annot)
+    print("Update %s" % len(update_annot))
+    db.updateAnnotationAll(update_annot)
 
 def run(parser,args):
     db_file=args.db_file
