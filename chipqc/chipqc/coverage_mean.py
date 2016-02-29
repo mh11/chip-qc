@@ -15,7 +15,7 @@ def getHelpInfo():
 def addArguments(parser):
     parser.add_argument('-l','--list-jobs',dest='l_jobs',help="Print jobs",action='store_true')
     parser.add_argument('-L','--list-jobs-details',dest='l_details',help="Print job details",action='store_true')
-    parser.add_argument('-o','--out-dir',type=str,dest='out_dir',default='%s/coverage'%os.getcwd(),help="Output directory of the coverage results. [default:{0}]".format('%s/coverage'%os.getcwd()))
+    parser.add_argument('-o','--out-dir',type=str,dest='out_dir',default='{0}/coverage'.format(os.getcwd()),help="Output directory of the coverage results. [default:{0}]".format('%s/coverage'%os.getcwd()))
     parser.add_argument('-w','--wiggle-tool',type=str,dest='wig_tool',default="wiggletools",help="Set path to specific wiggle tool to use")
     parser.add_argument('-f','--force',dest='force',help="Force recalculation of values",action='store_true')
     parser.add_argument('-j','--job-id',type=int,dest='job_id',help="Job id to process - default: all jobs with missing values are run")
@@ -41,7 +41,7 @@ def executeCmd(cmd,storeFunction):
     resList = list()
     resList.append(time.time())
     print (cmd)
-    res = [0,"TEST",""]
+#    res = [0,"TEST",""]
     res = execCmd(cmd)
     resList.append(time.time())
     resList.extend(res)
@@ -118,6 +118,9 @@ def calculate(args):
     db = chipqc_db.ChipQcDbSqlite(path=db_file)
     col = args.annot_col
     out_dir=args.out_dir
+
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
     ## Find all jobs (based on annotation)
     updateDatabase(db, col, out_dir)
