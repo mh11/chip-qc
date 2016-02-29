@@ -36,29 +36,6 @@ def getBedFile(genome="GRCh38", prefix=True):
     bed_file="{0}/enrichment/{1}{2}.bed".format(cdir,genome,chr)
     return bed_file
 
-def _loadJobList(db,force=False,limit=-1):
-    filter_dict = { id:file for (id,file, stat ) in db.getFilesFiltered()}
-    if force:
-        res = db.getCorrelations(limit=limit)
-    else:
-        res = db.getCorrelationOfStatus('init',limit=limit)
-    f_list = [ (id,filter_dict[a],filter_dict[b])  for (id,a,b,stat,out) in res ]
-    return f_list
-
-def _loadSelectedJobs(db,force=False,correlations=list(),limit=1):
-    retList = list()
-    filter_dict = { id:file for (id,file, stat ) in db.getFilesFiltered()}
-
-    if limit < 0:
-        limit = 1
-
-    for id in correlations:
-        res = db.getCorrelationRegion(start_id = int(id), end_id_excl=(int(id)+limit) )
-        f_list = [ (id,filter_dict[a],filter_dict[b])  for (id,a,b,stat,out) in res if (force or stat == 'init') ]
-        retList.extend(f_list)
-
-    return retList
-
 def executeCmd(cmd,storeFunction):
 #    res=[1,2,-1,"TEST",cmd]
     resList = list()
