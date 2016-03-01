@@ -3,6 +3,7 @@ __author__ = 'mh719'
 
 
 from exec_util import execCmd
+import time
 import os
 import os.path
 import inspect
@@ -33,6 +34,36 @@ def _print(header,data):
     for row in data:
         lst = [str(x) for x in row]
         print "\t".join(lst)
+
+def executeCmd(cmd,storeFunction):
+    resList = list()
+    resList.append(time.time())
+    print (cmd)
+#    res = [0,"TEST",""]
+    res = execCmd(cmd)
+    resList.append(time.time())
+    resList.extend(res)
+    return storeFunction(resList)
+
+def _storeValue(db,id,execOut):
+    print "Job %s finished " % id
+    start=execOut[0]
+    end=execOut[1]
+    exitVal = execOut[2]
+    out = execOut[3]
+    err = execOut[4]
+
+    if out is not None:
+        out = out.strip()
+    if err is not None:
+        err = err.strip()
+
+    status='done'
+    if exitVal != 0:
+        status='error'
+
+    db.updateEnrichment(((status,start,end,exitVal,out,err,id),))
+    return id
 
 def _createCommandIdx(db, r_file, jobs):
     data = _loadData(db, jobs)
@@ -146,10 +177,9 @@ def analyseEnrichment(args):
 
     ## Build commands
     cmdIdx = _createCommandIdx(db, r_file, jobs)
-    print(cmdIdx)
 
     ## Execute
-#    reslist = map(lambda id: executeCmd(cmdIdx[id], lambda x: _storeValue(db,id,x)),cmdIdx.keys())
+    reslist = map(lambda id: executeCmd(cmdIdx[id], lambda x: _storeValue(db,id,x)),cmdIdx.keys())
 
 
     ## TODO implement

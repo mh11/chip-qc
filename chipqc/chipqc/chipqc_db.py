@@ -267,6 +267,14 @@ class ChipQcDbSqlite:
             cur.execute(sql)
             return cur.fetchall()
 
+    def updateEnrichment(self, update):
+        with open_db_connection(self.path) as cur:
+            query = """
+            UPDATE enrichment
+            SET status=?,started=?, finished=?,exit_code=?, out=?,err=?
+            WHERE job_id = ? """
+            cur.executemany(query,update)
+
     def addEnrichment(self, values):
         with open_db_connection(self.path) as cur:
             cur.executemany("INSERT INTO enrichment (job_id, did, in_did, out_dir, status) VALUES (?, ?, ?, ?, ?)",values)

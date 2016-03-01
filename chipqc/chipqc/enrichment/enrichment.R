@@ -33,6 +33,9 @@ while(i <= length(args)){
 }
 
 outdir <- paste(outdir,"/",sep="") ## make sure there is a / at the end
+
+dir.create(outdir, showWarnings = FALSE)
+
 txt_file <- paste(outdir,"results.txt",sep="")
 
 x  <- cbind(
