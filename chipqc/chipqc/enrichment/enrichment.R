@@ -120,12 +120,12 @@ results.df <- data.frame(type=names(results), result=sprintf("%.5f",results))
 ## Write output file
 ######################
 results.df <- rbind(results.df, data.frame(type=c("ip_id","input_id"), result=sprintf("%s",c(ip_id, input_id))))
-results.df <- rbind(results.df, data.frame(type=c("error_1","error_2"), result=sprintf("%d",erros[1:2])))
-results.df <- rbind(results.df, data.frame(type=c("error_3"), result=sprintf("%.4f",erros[3])))
+results.df <- rbind(results.df, data.frame(type=c("error_1","error_2"), result=sprintf("%d", errors[1:2])))
+results.df <- rbind(results.df, data.frame(type=c("error_3"), result=sprintf("%.4f", errors[3])))
 
 print(results.df)
 
-write.table(results.df,file="test.txt",col.names=F, row.names=F, sep="\t", quote=F)
+write.table(results.df,file=txt_file ,col.names=F, row.names=F, sep="\t", quote=F)
 
 #FH <- file.create(txt_file)
 #writeLines(txt,txt_file)
