@@ -18,7 +18,6 @@ def addArguments(parser):
     parser.add_argument('-w','--wiggle-tool',type=str,dest='wig_tool',default="wiggletools",help="Set path to specific wiggle tool to use")
     parser.add_argument('-f','--force-all',dest='force',help="Force refilter",action='store_true')
 
-
 def skipFilter(db,args):
     filterid = list()
 ## Store in DB

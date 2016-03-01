@@ -2,15 +2,14 @@
 
 args <- commandArgs(trailingOnly = TRUE)
 #print(args)
-
 input_mean_file <- ''
 ip_mean_file <- ''
-
 input_id <- ''
 ip_id <- ''
-
 outdir <- '.'
 
+y1 <- 0 # as.integer(args$ipsz)
+y2 <- 0 # as.integer(args$inputsz)
 
 i <-1
 while(i <= length(args)){
@@ -34,6 +33,7 @@ while(i <= length(args)){
 }
 
 outdir <- paste(outdir,"/",sep="") ## make sure there is a / at the end
+txt_file <- paste(outdir,"results.txt",sep="")
 
 x  <- cbind(
 	read.delim(ip_mean_file, head=F, colClasses=c(rep("NULL",3), "numeric"), na.strings="nan"), 
@@ -112,15 +112,24 @@ dev.off()
 ######################
 results = round(c(p, q, div, zscore, pc_enrichment, input_scaling_factor, diff_pc_enrichment), 4)
 names(results) = c("p", "q", "divergence", "z_score", "percent_genome_enriched", "input_scaling_factor", "differential_percentage_enrichment")
-   
+#print(results)
+
+results.df <- data.frame(type=names(results), result=sprintf("%.5f",results))
+
 ######################
 ## Write output file
 ######################
-txt <- sprintf("%s	%s	%.5f	%.5f	%.5f	%.2f	%.3f	%.5f	%.4f	%d	%d	%.4f\n", c(ip_id, input_id, results, errors[1], errors[2], errors[3])
-txt_file <- paste(outdir,"results.txt",sep="")
-FH <- file.create(txt_file)
-writeLines(txt,FH)
-close(FH)
+results.df <- rbind(results.df, data.frame(type=c("ip_id","input_id"), result=sprintf("%s",c(ip_id, input_id))))
+results.df <- rbind(results.df, data.frame(type=c("error_1","error_2"), result=sprintf("%d",erros[1:2])))
+results.df <- rbind(results.df, data.frame(type=c("error_3"), result=sprintf("%.4f",erros[3])))
+
+print(results.df)
+
+write.table(results.df,file="test.txt",col.names=F, row.names=F, sep="\t", quote=F)
+
+#FH <- file.create(txt_file)
+#writeLines(txt,txt_file)
+#close(FH)
 
 #sink(txt_file, append=TRUE)
 #cat(sprintf("%s	%s	%.5f	%.5f	%.5f	%.2f	%.3f	%.5f	%.4f	%d	%d	%.4f\n", c(ip_id, input_id, results, errors[1], errors[2], errors[3]))

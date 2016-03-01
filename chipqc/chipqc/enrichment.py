@@ -12,15 +12,15 @@ def getHelpInfo():
     return "Enrichment"
 
 def addArguments(parser):
-    parser.add_argument('-l','--list-files',dest='l_file',help="Print annotated files",action='store_true')
-    parser.add_argument('-L','--list-files-annotated',dest='la_file',help="Print processed files with details",action='store_true')
+    parser.add_argument('-l','--list-jobs',dest='l_jobs',help="Print jobs",action='store_true')
+    parser.add_argument('-L','--list-jobs-details',dest='l_details',help="Print job details",action='store_true')
     parser.add_argument('-o','--out-dir',type=str,dest='out_dir',default='%s/enrichment'%os.getcwd(),help="Output directory of the enrichment results. [default:{0}]".format('%s/enrichment'%os.getcwd()))
     parser.add_argument('-f','--force',dest='force',help="Force recalculation of values",action='store_true')
-    parser.add_argument('-i','--id',type=int,dest='id',help="Enrichment id to process - default: all unprocessed enrichment jobs are run")
-    parser.add_argument('-x','--maximum',type=int,dest='limit',help="Limit numbers of jobs - default: no limitations")
+    parser.add_argument('-j','--job-id',type=int,dest='job_id',help="Enrichment id to process - default: all unprocessed enrichment jobs are run")
+    parser.add_argument('-n','--n-jobs',type=int,dest='limit',help="Run n number of jobs - default: no limitations")
+    parser.add_argument('-A','--with-annotation',type=str,dest='annot_col',default="INPUT",help="Provide external INPUT id for analysis. [default: INPUT]")
 
 def getScriptdir():
-#    print inspect.getfile(inspect.currentframe()) # script filename (usually with path)
     return os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
 def getRFile():
@@ -28,78 +28,129 @@ def getRFile():
     r_file="%s/enrichment/enrichment.R" % (cdir,)
     return r_file
 
-
 def _print(header,data):
     print "\t".join(header)
     for row in data:
         lst = [str(x) for x in row]
         print "\t".join(lst)
 
-def _loadData(db,col):
-    (descrSum, dataSum) = db.getEnrichmentAnnotated(col=col)
-    currStatus = { id:status for (id,status) in db.getEnrichmentStatus() }
+def _createCommandIdx(db, r_file, jobs):
+    data = _loadData(db, jobs)
+    cmdTemplate = "Rscript {0} --ip-id {1} --ip-mean-file {2} --input-id {3} --input-mean-file {4} --out {5} "
+    jobCmds = { x[0] : cmdTemplate.format(r_file, x[1], x[3], x[2], x[4], x[5]) for x in data}
+    return jobCmds
 
-    idx = { str(row[1]):str(row[2])  for row in db.getFiles()}
+def _loadData(db, jobs):
+    id_2_ext = {r[0]:r[1] for r in db.getFiles()}
+    id_2_covfile = {r[1]:r[2] for r in db.getCoverage()}
+#    enr = db.getEnrichment()
+    enr = jobs
 
     tmp = list()
-    for row in dataSum:
-        id = row[0]
-        inid = row[2]
-        if inid not in idx.keys():
-            raise Exception("Input ID {0} not found in DB!!!".format(inid) )
-        status = "new"
+    for r in enr:
+        d = [r[0]]
+        d += [id_2_ext[r[1]], id_2_ext[r[2]], id_2_covfile[r[1]], id_2_covfile[r[2]] ]
+        d += r[3:]
+        tmp.append(d)
+    return tmp
 
-        if id in currStatus.keys():
-            status = str(currStatus[id])
+def printStatus(db, jobs, details=False):
+    data = _loadData(db, jobs)
+    descrSum = ["JOB_ID","EXTERNAL_ID","EXTERNAL_ID_INPUT","IP_MEAN","INPUT_MEAN","OUTPUT_DIR","STATUS"]
+    descrSum += ["started","finished","exit_code","out","err"]
+    descrSum += ["p","q","divergence","z_score","percent_genome_enriched", "input_scaling_factor", "differential_percentage_enrichment"]
 
-        row += (idx[inid],status)
-        tmp.append(row )
-
-    descrSum += ("INPUT_DATA_FILE_PATH","STATUS")
-    dataSum = tmp
-    return (descrSum,dataSum)
-
-def printStatus(db, col, details=False):
-    (descrSum, dataSum) = _loadData(db, col)
     if details :
-        _print(descrSum,dataSum)
+        _print(descrSum,data)
     else:
-        _print(descrSum[0:3], [ r[0:3] for r in dataSum])
+        _print(descrSum[0:7], [ r[0:7] for r in data])
 
-def analyseCorrelation(args):
+def updateDatabase(db, col, out_path):
+    ext_to_id = { str(r[1]):r[0] for r in db.getFiles() } ## File IDX
+    did_to_ext = { r[1]:r[0] for r in ext_to_id.iteritems() } ## File IDX
+    annotated_idx = {r[0]:r for r in db.getAnnotationsByKey(col)} ## did, ext_id, key, value
+    ip_to_input = {}
+    for r in annotated_idx.values():
+        input_ext_id = r[3]
+        if input_ext_id not in ext_to_id.keys():
+            raise Exception("Annotation %s of external input id %s for entry %s does not exist in DB!!!".format(col,input_ext_id,r[1]))
+        input_did = ext_to_id[input_ext_id]
+        ip_to_input[r[0]] = input_did
+
+    covdb = [ [row[1],row[2]] for row in db.getCoverage() if row[3] == "done" ] # find finished jobs
+    cov_to_file = { r[0]:r[1] for r in covdb }
+
+    enr = db.getEnrichment()
+    enr_did = set([r[1] for r in enr])
+    print("Found jobs: {0} ...".format(len(enr)))
+
+    max_id = 0
+    if len(enr) > 0:
+        max_id = max([r[0] for r in enr])
+
+    insert_lst = list()
+
+    for (ip_id,input_did) in ip_to_input.iteritems():
+        if  (ip_id in cov_to_file.keys()  ## finished processing mean for IP
+             and input_did in cov_to_file.keys()  ## AND input file
+             and ip_id not in enr_did): ## not registered yet
+            max_id = max_id + 1
+
+            ip_file = cov_to_file[ip_id]
+            in_file = cov_to_file[input_did]
+            res_dir = "{0}/{1}".format(out_path,did_to_ext[ip_id])
+            insert_lst.append([max_id,ip_id, input_did, res_dir,"init"])
+
+    print("Add new jobs: {0} ...".format(len(insert_lst)))
+    db.addEnrichment(insert_lst)
+
+def analyseEnrichment(args):
     db_file=args.db_file
     force = args.force
-    wig=args.wig_tool
     out_dir=args.out_dir
-
+    col = args.annot_col
     r_file = getRFile()
-#    print("RFile: %s" % r_file)
-
     db = chipqc_db.ChipQcDbSqlite(path=db_file)
 
-## Print INFO
-    if args.l_file:
-        printStatus(db, args.in_col, details=False)
-        return;
-    elif args.la_file:
-        printStatus(db, args.in_col, details=True)
-        return;
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    ## Find all jobs (based on annotation)
+    updateDatabase(db, col, out_dir)
+
+    allJobs = db.getEnrichment()
+    jobs = allJobs
 
     limit=-1
     if 'limit' in args and args.limit != None:
         limit = args.limit
 
-    jobList= [ row for row in _loadData(db,args.in_col)[1] if force or row[5] == "new" ]
-    if 'id' in args and args.id != None:
-        maxid = args.id + 1
+
+    if 'job_id' in args and args.job_id != None:
+        max_id = args.job_id + 1
         if limit > 0:
-            maxid = args.id + limit
-        jobList = [ row for row in jobList if row[0] >= args.id and row[0] < maxid]
+            max_id = args.job_id + limit
+        jobs = [ r for r in jobs if r[0] >= args.job_id and r[0] < max_id]
 
-    print("Found %s job(s) to process ... " % len(jobList))
+## Print INFO
+    if args.l_jobs:
+        printStatus(db, jobs, details=False)
+        return
+    elif args.l_details:
+        printStatus(db, jobs, details=True)
+        return
 
-    print("Calculate mean coverage ... ")
-    _calculateMean(db, args.in_col, out_bed_dir, force=force)
+    jobs = [r for r in jobs if force or r[4] == 'init'] ## status is init
+
+    print "Processing %s jobs ..." % (len(jobs))
+
+    ## Build commands
+    cmdIdx = _createCommandIdx(db, r_file, jobs)
+    print(cmdIdx)
+
+    ## Execute
+#    reslist = map(lambda id: executeCmd(cmdIdx[id], lambda x: _storeValue(db,id,x)),cmdIdx.keys())
+
 
     ## TODO implement
     ## Calculate mean value for each BIN (done before
@@ -130,5 +181,5 @@ def analyseCorrelation(args):
     return None
 
 def run(parser,args):
-    analyseCorrelation(args)
+    analyseEnrichment(args)
     return 0

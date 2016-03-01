@@ -19,7 +19,7 @@ def addArguments(parser):
     parser.add_argument('-w','--wiggle-tool',type=str,dest='wig_tool',default="wiggletools",help="Set path to specific wiggle tool to use")
     parser.add_argument('-f','--force',dest='force',help="Force recalculation of values",action='store_true')
     parser.add_argument('-j','--job-id',type=int,dest='job_id',help="Job id to process - default: all jobs with missing values are run")
-    parser.add_argument('-x','--max-jobs',type=int,dest='limit',help="Limit numbers of jobs - default: no limitations")
+    parser.add_argument('-n','--n-jobs',type=int,dest='limit',help="Run n number of jobs - default: no limitations")
     parser.add_argument('-g','--genome',type=str,dest='genome',default="GRCh38",help="Genome assembly version")
     parser.add_argument('-C','--chromosome-prefix',type=str,dest='chr_exist',default="True",help="Chromosomes use 'chr' prefix (True|False) [default: True]")
     parser.add_argument('-A','--with-annotation-only',type=str,dest='annot_col',default="CALC_MEAN",help="Limit to experiements annotated with key. [default: CALC_MEAN]")

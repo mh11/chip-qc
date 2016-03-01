@@ -40,7 +40,7 @@ class ChipQcDbSqlite:
                 cur.execute("CREATE TABLE filter(did INT UNIQUE,f_file_path TEXT, status TEXT, started TEXT, finished TEXT, exit_code TEXT,out TEXT,err TEXT)")
                 cur.execute("CREATE TABLE correlation(corr_id INT UNIQUE,did_a INT, did_b INT, status TEXT, started TEXT, finished TEXT, exit_code TEXT, out TEXT, err TEXT,run_count INT DEFAULT 0) ")
                 cur.execute("CREATE TABLE cov_mean(cov_id INT UNIQUE, did INT, data_file TEXT, status TEXT, started TEXT, finished TEXT, exit_code TEXT, out TEXT, err TEXT) ")
-                cur.execute("""CREATE TABLE enrichment(did INT UNIQUE, status TEXT, started TEXT, finished TEXT, exit_code TEXT,out TEXT,err TEXT,
+                cur.execute("""CREATE TABLE enrichment(job_id INT, did INT UNIQUE, in_did INT, out_dir TEXT, status TEXT, started TEXT, finished TEXT, exit_code TEXT,out TEXT,err TEXT,
                 p REAL, q REAL, divergence REAL, z_score REAL, percent_genome_enriched REAL, input_scaling_factor REAL, differential_percentage_enrichment REAL )""")
 
     def getMaxDataId(self):
@@ -100,36 +100,6 @@ class ChipQcDbSqlite:
         with open_db_connection(self.path) as cur:
             cur.execute("SELECT did, external_id, data_file FROM data_file")
             return cur.fetchall()
-
-####################
-## Enrichment
-    def getEnrichmentAnnotated(self, col):
-        with open_db_connection(self.path) as cur:
-            query = """
-            SELECT e.did AS DATA_FILE_ID,e.external_id AS EXTERNAL_ID, d.value AS EXTERNAL_ID_INPUT, e.data_file AS DATA_FILE_PATH
-            FROM data_file e, data_key k, data_annotation d
-            WHERE e.did = d.did
-            AND d.kid = k.kid
-            AND k.key = ?
-            """
-            cur.execute(query, (col,) )
-            data = cur.fetchall()
-            desc = list(map(lambda x: str(x[0]), cur.description))
-            return (desc,data)
-
-    def getEnrichmentStatus(self):
-        with open_db_connection(self.path) as cur:
-            cur.execute("SELECT e.did, e.status FROM enrichment e")
-            return cur.fetchall()
-
-    def getEnrichmentFiles(self):
-        with open_db_connection(self.path) as cur:
-            sql = """
-            SELECT
-            """
-            cur.execute(sql)
-            return cur.fetchall()
-
 
 ####################
 ## Filter
@@ -211,7 +181,6 @@ class ChipQcDbSqlite:
 
             return cur.fetchall()
 
-
     def getCorrelationsDetails(self, id):
         with open_db_connection(self.path) as cur:
             cur.execute("""
@@ -284,7 +253,27 @@ class ChipQcDbSqlite:
             data = cur.fetchall()
             return data
 
-#####
+####################
+## Enrichment
+####################
+    def getEnrichment(self):
+        with open_db_connection(self.path) as cur:
+            sql = """
+            SELECT job_id, did, in_did, out_dir, status, started, finished, exit_code, out,err,
+                p, q, divergence, z_score, percent_genome_enriched, input_scaling_factor, differential_percentage_enrichment
+            FROM enrichment
+            ORDER BY job_id
+            """
+            cur.execute(sql)
+            return cur.fetchall()
+
+    def addEnrichment(self, values):
+        with open_db_connection(self.path) as cur:
+            cur.executemany("INSERT INTO enrichment (job_id, did, in_did, out_dir, status) VALUES (?, ?, ?, ?, ?)",values)
+
+####################
+## Coverage
+####################
     def getCoverage(self):
         # cov_mean(cov_id, did INT, data_file TEXT, status TEXT, started TEXT, finished TEXT, exit_code TEXT, out TEXT, err TEXT)
         with open_db_connection(self.path) as cur:
