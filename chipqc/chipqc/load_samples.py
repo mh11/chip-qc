@@ -159,9 +159,8 @@ def addAnnotate(db, data): ## data: [external_id, Annotation, ...]
 ## ensure they are in DB
     not_in_db = [row for idx,row in enumerate(data) if idx > 0 and row[0] not in ext_dict.keys() ]
     if len(not_in_db) > 0:
-        print("External IDs not found for rows:")
-        print(not_in_db)
-        raise Exception("ID's not found in DB: {0}".format(";".join([r[0] for r in not_in_db])))
+        print("Number of external IDs not found: {0}".format(str(len(not_in_db))))
+        print("IDs: {0}".format(";".join([r[0] for r in not_in_db])))
 
     annnot = [row for idx,row in enumerate(data) if idx == 0 or row[0] in ext_dict.keys() ]
     print("Loading %s rows of annotations into DB ... " % (len(annnot)-1,))
