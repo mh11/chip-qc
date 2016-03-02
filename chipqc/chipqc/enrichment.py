@@ -114,7 +114,7 @@ def updateDatabase(db, col, out_path):
     for r in annotated_idx.values():
         input_ext_id = r[3]
         if input_ext_id not in ext_to_id.keys():
-            raise Exception("Annotation %s of external input id %s for entry %s does not exist in DB!!!".format(col,input_ext_id,r[1]))
+            raise Exception("Annotation {0} of external input id {1} for entry {2} does not exist in DB!!!".format(col,input_ext_id,r[1]))
         input_did = ext_to_id[input_ext_id]
         ip_to_input[r[0]] = input_did
 
