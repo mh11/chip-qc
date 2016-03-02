@@ -8,8 +8,8 @@ input_id <- ''
 ip_id <- ''
 outdir <- '.'
 
-y1 <- 0 # as.integer(args$ipsz)
-y2 <- 0 # as.integer(args$inputsz)
+ip_count <- 0 # as.integer(args$ipsz)
+input_count <- 0 # as.integer(args$inputsz)
 
 i <-1
 while(i <= length(args)){
@@ -19,12 +19,18 @@ while(i <= length(args)){
     } else if(args[i] == '--ip-id'){
         i <- i+1
         ip_id <- args[i]
+    } else if(args[i] == '--ip-count'){
+        i <- i+1
+        ip_count <- as.integer(args[i])
     } else if(args[i] == '--input-mean-file'){
         i <- i+1
         input_mean_file <- args[i]
     } else if(args[i] == '--input-id'){
         i <- i+1
         input_id <- args[i]
+    } else if(args[i] == '--input-count'){
+        i <- i+1
+        input_count <- as.integer(args[i])
     } else if(args[i] == '--out'){
         i <- i+1
         outdir  <- args[i]
@@ -78,16 +84,16 @@ div = -(p + q)/2 * log2((p + q)/2) - (1 - (p + q)/2) * log2(1 - (p + q)/2) + p/2
 f = sqrt(div)
 zscore = NA 
 
-if(y1 > 0 & y2 > 0) {
+if(ip_count > 0 & input_count > 0) {
    d11 = log2(2 * p / (p + q)) / (4 * f)
    d21 = log2(2 * (1 - p) / (2 - p - q)) / (4 * f)
    d12 = log2(2 * q / (p + q)) / (4 * f)
    d22 = log2(2 * (1 - q) / (2 - p - q)) / (4 * f)
-   varf = p * (1 - p) / y1 * ( d11 * (d11 - d21) + d21 * (d21 - d11) ) + q * (1 - q) / y2 * (d21 * (d21 - d22) + d22 * (d22 - d21) )
+   varf = p * (1 - p) / ip_count * ( d11 * (d11 - d21) + d21 * (d21 - d11) ) + q * (1 - q) / input_count * (d21 * (d21 - d22) + d22 * (d22 - d21) )
    zscore = f/sqrt(varf)
 }
 pc_enrichment <- 100 * (n - k)/n
-input_scaling_factor <- p / q * y1 / y2
+input_scaling_factor <- p / q * input_count / input_count
 diff_pc_enrichment <- 100 * (q - p)
 
 ######################

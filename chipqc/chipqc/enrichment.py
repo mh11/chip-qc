@@ -20,6 +20,7 @@ def addArguments(parser):
     parser.add_argument('-j','--job-id',type=int,dest='job_id',help="Enrichment id to process - default: all unprocessed enrichment jobs are run")
     parser.add_argument('-n','--n-jobs',type=int,dest='limit',help="Run n number of jobs - default: no limitations")
     parser.add_argument('-A','--with-annotation',type=str,dest='annot_col',default="INPUT",help="Provide external INPUT id for analysis. [default: INPUT]")
+    parser.add_argument('-R','--with-read-count',type=str,dest='annot_cnt',default="READ_COUNT",help="Provide external read counts for analysis. [default: READ_COUNT]")
 
 def getScriptdir():
     return os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -65,36 +66,45 @@ def _storeValue(db,id,execOut):
     db.updateEnrichment(((status,start,end,exitVal,out,err,id),))
     return id
 
-def _createCommandIdx(db, r_file, jobs):
-    data = _loadData(db, jobs)
-    cmdTemplate = "Rscript {0} --ip-id {1} --ip-mean-file {2} --input-id {3} --input-mean-file {4} --out {5} "
-    jobCmds = { x[0] : cmdTemplate.format(r_file, x[1], x[3], x[2], x[4], x[5]) for x in data}
+def _createCommandIdx(db, r_file, cntKey,  jobs):
+    data = _loadData(db, cntKey, jobs)
+    cmdTemplate = "Rscript {0} --ip-id {1} --ip-mean-file {2} --input-id {3} --input-mean-file {4} --ip-count {5} --input-count {6} --out {7} "
+    jobCmds = { x[0] : cmdTemplate.format(r_file, x[1], x[3], x[2], x[4], x[5], x[6], x[7]) for x in data}
     return jobCmds
 
-def _loadData(db, jobs):
+def _loadData(db, cntKey, jobs):
     id_2_ext = {r[0]:r[1] for r in db.getFiles()}
     id_2_covfile = {r[1]:r[2] for r in db.getCoverage()}
+    id_2_count = {r[0]:r[3] for r in db.getAnnotationsByKey(cntKey)}
 #    enr = db.getEnrichment()
     enr = jobs
 
     tmp = list()
     for r in enr:
+        id_cnt = 0
+        in_cnt = 0
+        if r[1] in id_2_count.keys():
+            id_cnt = id_2_count[r[1]]
+        if r[2] in id_2_count.keys():
+            in_cnt = id_2_count[r[2]]
+
         d = [r[0]]
         d += [id_2_ext[r[1]], id_2_ext[r[2]], id_2_covfile[r[1]], id_2_covfile[r[2]] ]
+        d += [id_cnt, in_cnt]
         d += r[3:]
         tmp.append(d)
     return tmp
 
-def printStatus(db, jobs, details=False):
-    data = _loadData(db, jobs)
-    descrSum = ["JOB_ID","EXTERNAL_ID","EXTERNAL_ID_INPUT","IP_MEAN","INPUT_MEAN","OUTPUT_DIR","STATUS"]
+def printStatus(db, cntKey, jobs, details=False):
+    data = _loadData(db, cntKey, jobs)
+    descrSum = ["JOB_ID","EXTERNAL_ID","EXTERNAL_ID_INPUT","IP_MEAN","INPUT_MEAN","IP_READ_COUNT","INPUT_READ_COUNT","OUTPUT_DIR","STATUS"]
     descrSum += ["started","finished","exit_code","out","err"]
     descrSum += ["p","q","divergence","z_score","percent_genome_enriched", "input_scaling_factor", "differential_percentage_enrichment"]
 
     if details :
         _print(descrSum,data)
     else:
-        _print(descrSum[0:7], [ r[0:7] for r in data])
+        _print(descrSum[0:9], [ r[0:9] for r in data])
 
 def updateDatabase(db, col, out_path):
     ext_to_id = { str(r[1]):r[0] for r in db.getFiles() } ## File IDX
@@ -140,6 +150,7 @@ def analyseEnrichment(args):
     force = args.force
     out_dir=args.out_dir
     col = args.annot_col
+    countAnnot = args.annot_cnt
     r_file = getRFile()
     db = chipqc_db.ChipQcDbSqlite(path=db_file)
 
@@ -165,10 +176,10 @@ def analyseEnrichment(args):
 
 ## Print INFO
     if args.l_jobs:
-        printStatus(db, jobs, details=False)
+        printStatus(db, countAnnot, jobs, details=False)
         return
     elif args.l_details:
-        printStatus(db, jobs, details=True)
+        printStatus(db, countAnnot, jobs, details=True)
         return
 
     jobs = [r for r in jobs if force or r[4] == 'init'] ## status is init
@@ -176,7 +187,7 @@ def analyseEnrichment(args):
     print "Processing %s jobs ..." % (len(jobs))
 
     ## Build commands
-    cmdIdx = _createCommandIdx(db, r_file, jobs)
+    cmdIdx = _createCommandIdx(db, r_file, countAnnot, jobs)
 
     ## Execute
     reslist = map(lambda id: executeCmd(cmdIdx[id], lambda x: _storeValue(db,id,x)),cmdIdx.keys())
