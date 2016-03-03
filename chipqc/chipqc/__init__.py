@@ -59,7 +59,7 @@ def main(argv=None):
     args, extra = parser.parse_known_args()
     args.db_file = os.path.abspath(args.db_file)
 
-#    print "Using DB %s " % (args.db_file,)
+#    print("#Using DB {0} ".format(args.db_file))
 
     subcmds = { a:b for (a,b) in cmdLst }
 
