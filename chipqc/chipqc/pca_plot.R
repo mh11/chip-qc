@@ -101,7 +101,7 @@ run_plot <- function(con, output_dir, annot_a, annot_b, b_color, file_extention)
 
             pcatitle <- paste("Type: `",a_string,"` (",query_external_id,")",sep="")
 
-            file<-paste(output_dir,"/",query_external_id,"-",file_extention,".png",sep="")
+            file<-paste(output_dir,"/",query_external_id,file_extention,".png",sep="")
             print(file)
             png(file,width=1546, height=800, res=120)
 
