@@ -110,4 +110,4 @@ def run(parser,args):
         ret = filter(db,args)
         if ret != 0:
             print ("Error: there were errors during execution !!!")
-    return 1
+    return 0
