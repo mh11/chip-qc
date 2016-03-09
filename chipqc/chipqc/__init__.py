@@ -11,6 +11,7 @@ import db_explore
 import filter_samples
 import correlate_files
 import pca_analysis
+import snapshot
 import enrichment
 import coverage_mean
 import os
@@ -48,6 +49,7 @@ def main(argv=None):
     cmdLst = [
         ('load',load_samples),
         ('list',db_explore),
+        ('snapshot',snapshot),
         ('filter',filter_samples),
         ('correlate',correlate_files),
         ('pca',pca_analysis),

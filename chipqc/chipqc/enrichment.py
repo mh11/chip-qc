@@ -39,8 +39,6 @@ def _print(header,data):
 def executeCmd(cmd,storeFunction):
     resList = list()
     resList.append(time.time())
-    print (cmd)
-#    res = [0,"TEST",""]
     res = execCmd(cmd)
     resList.append(time.time())
     resList.extend(res)
