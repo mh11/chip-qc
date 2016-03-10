@@ -17,4 +17,5 @@ RColorBrewer
 From bioconductor:
 biocLite("Gviz")
 biocLite("rtracklayer")
-biocLite("BSgenome.Hsapiens.UCSC.hg19")
+biocLite("biomaRt")
+	
