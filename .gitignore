@@ -1,2 +1,4 @@
-**.pyc
-**.svg
+*.pyc
+*.svg
+.DS_Store
+chipqc.egg-info
