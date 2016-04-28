@@ -64,6 +64,6 @@ for ( reg_i in 1:nrow(reg) ){
   out_file <- paste(outdir,"/",external_id,"_",reg[reg_i,4],".png",sep="")
   print(out_file)
   png(out_file, width=1024, height=1024)
-  plotTracks(list(ideoTrack, axisTrack, BWtrack, biomTrack), chromosome = reg[reg_i,1],  from = reg[reg_i,2], to = reg[reg_i,3], type = "l")
+  plotTracks(list(ideoTrack, axisTrack, BWtrack, biomTrack), chromosome = reg[reg_i,1],  from = reg[reg_i,2], to = reg[reg_i,3], type = "l", fontsize=22)
   dev.off()
 }
