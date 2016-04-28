@@ -35,7 +35,7 @@ def create_parser(subcmds):
     )
 
     parser.add_argument('-d','--db',type=str,dest='db_file', default='chip-seq-qc.db',help="Database file for analysis")
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s 0.1 - SNAPSHOT')
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s version {0}'.format(__version__))
 
     subparsers = parser.add_subparsers( title="Sub commands", description="valid sub commands", help='sub-command help', dest="sub_cmd")
 
