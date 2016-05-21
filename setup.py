@@ -17,7 +17,10 @@ setup(name='chipqc',
       license='MIT',
       packages=find_packages(),
       zip_safe=False,
-
+      data_files=[
+        ('chipqc',['chipqc/pca_plot.R', 'chipqc/snapshot.R']),
+        ('chipqc/enrichment',['chipqc/enrichment/enrichment.R', 'chipqc/enrichment/GRCh38.chr.bed']),
+        ],
       entry_points={
         'console_scripts':[
 #            'chipqc = chipqc.ChipQc:main',
