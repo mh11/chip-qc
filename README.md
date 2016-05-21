@@ -45,7 +45,7 @@ After installing the requirements, the last step to complete the **chip-qc** ins
 ```
 python setup.py install
 ```
-:exclamation: To reinstall or upgrade the package, you need to run:
+:exclamation: To reinstall or upgrade the package, you need to run install again:
 ```
-python setup.py install --upgrade
+python setup.py install
 ```
