@@ -2,7 +2,7 @@
 Here is a step by step guide how to install **chip-qc** on your system. It will get your required python libraries installed and provides a list of **R** dependencies below.
  
 ### Requirements
-This software package is written in the programming language [**Python**](https://www.python.org) and the statistical functional language [**R**](https://www.r-project.org). Extra extensions are required for processing in addition to the basic installion of both packages. Instruction on how to install **chip-qc** and the required extensions are listed below.
+This software package is written in the programming language [**Python**](https://www.python.org), the statistical functional language [**R**](https://www.r-project.org) and the anayslysis package [**WiggleTools**](https://github.com/Ensembl/WiggleTools). Extra extensions are required for processing in addition to the basic installion of both packages. Instruction on how to install **chip-qc** and the required extensions are listed below.
 #### Python 
 First, [**Python**](https://www.python.org) needs to be installed, if it does not exist yet on the system . Then check, if the package manager [**pip**](https://pip.pypa.io/en/stable/) is present as well.
 
