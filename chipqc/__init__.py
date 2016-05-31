@@ -70,7 +70,8 @@ def main(argv=None):
     else:
         print ("Command %s not registered!!!"%args.sub_cmd)
         parser.print_help( )
+    return 0
 
 if __name__ == "__main__":
     ret = main()
-
+    sys.exit(ret)

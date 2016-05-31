@@ -17,7 +17,7 @@ def addArguments(parser):
     parser.add_argument('-o','--out-dir',type=str,dest='out_dir',default='%s/snapshot'%os.getcwd(),help="Output directory of the snapshots. [default:{0}]".format('%s/snapshot'%os.getcwd()))
     parser.add_argument('-j','--job-id',type=int,dest='job_id',help="Id to process - default: all jobs are run")
     parser.add_argument('-n','--n-jobs',type=int,dest='limit',help="Run n number of jobs - default: no limitations")
-    parser.add_argument('-r','--regions',type=str,dest='bed_file', required=True,help="Provide BED file with regions (optional ID in 4 column)")
+    parser.add_argument('-r','--regions',type=str,dest='bed_file', required=False,help="Provide BED file with regions (optional ID in 4 column)", default="")
     parser.add_argument('-37','--grch37',dest='rel_37',help="Use GRCh37 release instead of GRCh38",action='store_true')
 
 def getScriptdir():
@@ -74,13 +74,7 @@ def printStatus(db, jobs):
 
 def runScreenshots(args):
     db_file=args.db_file
-    out_dir=args.out_dir
-    r_file = getRFile()
-    bed_file=os.path.abspath(args.bed_file)
     db = chipqc_db.ChipQcDbSqlite(path=db_file)
-
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
 
     allJobs = db.getFiles()
     jobs = allJobs
@@ -98,17 +92,27 @@ def runScreenshots(args):
 ## Print INFO
     if args.l_jobs:
         printStatus(db, jobs)
-        return
+        return 0
+
+
+    out_dir=args.out_dir
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
     print "Processing %s jobs ..." % (len(jobs))
-
+    bed_file=args.bed_file
+    if len(bed_file.strip()) == 0:
+        print ("Please specify a region file.")
+        return 1
+    bed_file=os.path.abspath(bed_file)
+    print ("Use region file %s " % bed_file)
+    r_file = getRFile()
     ## Build commands
     cmdIdx = _createCommandIdx(db, r_file, out_dir, bed_file, jobs, grch37=args.rel_37)
 
     ## Execute
     reslist = map(lambda id: executeCmd(cmdIdx[id], lambda x: _storeValue(db,id,x)),cmdIdx.keys())
-    return None
+    return 0
 
 def run(parser,args):
-    runScreenshots(args)
-    return 0
+    return runScreenshots(args)
