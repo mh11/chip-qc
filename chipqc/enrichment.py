@@ -44,6 +44,41 @@ def executeCmd(cmd,storeFunction):
     resList.extend(res)
     return storeFunction(resList)
 
+definition = ["p","q","divergence", "z_score","percent_genome_enriched",
+   "input_scaling_factor","differential_percentage_enrichment",
+   "differential_percentage_enrichment"]
+
+def getTableColumn(id):
+    if id in definition:
+        return id
+    return None
+
+def returnValue(dict, x):
+    if x in dict:
+        return dict[x]
+    else:
+        return None
+
+def wrap(dict):
+    return [ returnValue(dict, x) for x in definition]
+
+def _parseOutput(out):
+    dict = {}
+
+    if out is None:
+        return None
+
+    for l in out.split("\n"):
+        l = l.strip()
+        arr = l.split()
+        if len(arr) > 2:
+            col = getTableColumn(arr[1])
+            if col:
+                dict[col] = float(arr[2])
+    if len(dict) == 0:
+        return None
+    return wrap(dict)
+
 def _storeValue(db,id,execOut):
     print "Job %s finished " % id
     start=execOut[0]
@@ -52,17 +87,25 @@ def _storeValue(db,id,execOut):
     out = execOut[3]
     err = execOut[4]
 
+    _parseOutput(out)
+
     if out is not None:
         out = out.strip()
     if err is not None:
         err = err.strip()
 
+    res = _parseOutput(out)
+    if res is None:
+        res = wrap({})
+    else:
+        out = ""
+
     status='done'
     if exitVal != 0:
         status='error'
-
-    db.updateEnrichment(((status,start,end,exitVal,out,err,id),))
-    return id
+    param = [status,start,end,exitVal,out,err] + res + [id]
+    db.updateEnrichment((param,))
+    return exitVal
 
 def _createCommandIdx(db, r_file, cntKey,  jobs):
     data = _loadData(db, cntKey, jobs)
@@ -100,7 +143,8 @@ def printStatus(db, cntKey, jobs, details=False):
     descrSum += ["p","q","divergence","z_score","percent_genome_enriched", "input_scaling_factor", "differential_percentage_enrichment"]
 
     if details :
-        _print(descrSum,data)
+        # _print(descrSum,data)
+        _print(descrSum[0:1]+descrSum[14:21]+descrSum[9:12] + [descrSum[13]], [ r[0:1]+r[14:21]+r[9:12] + [r[13]] for r in data])
     else:
         _print(descrSum[0:9], [ r[0:9] for r in data])
 
@@ -189,36 +233,10 @@ def analyseEnrichment(args):
 
     ## Execute
     reslist = map(lambda id: executeCmd(cmdIdx[id], lambda x: _storeValue(db,id,x)),cmdIdx.keys())
-
-
-    ## TODO implement
-    ## Calculate mean value for each BIN (done before
-    ## INPUT
-    ##   -> calculate mean
-    ## IP files
-    ##   -> calculate mean
-    ##
-    ## wiggletools apply_paste mean.txt meanI regions.chr.bed BW
-
-    ## execute Enrichment R script to
-    ##  -> Plot + result file
-    ##  -> read result file and put into DB
-
-
-#    cmdTemplate=" Rscript {0} --db {1} --out {2}"
-
-#    cmd=cmdTemplate.format(r_file,db_file,out_dir)
-#    res = execCmd(cmd)
-
-#    start=res[0]
-#    end=res[1]
-#    exitVal = res[2]
-#    out = res[3]
-#    err = res[4]
-
-#    print (res)
-    return None
+    failed = [ x for x in reslist if x != 0]
+    if len(failed) > 0:
+        print("Number of failed jobs: %s" % str(len(failed)) )
+    return len(failed)
 
 def run(parser,args):
-    analyseEnrichment(args)
-    return 0
+    return analyseEnrichment(args)

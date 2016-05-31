@@ -271,7 +271,9 @@ class ChipQcDbSqlite:
         with open_db_connection(self.path) as cur:
             query = """
             UPDATE enrichment
-            SET status=?,started=?, finished=?,exit_code=?, out=?,err=?
+            SET status=?,started=?, finished=?,exit_code=?, out=?,err=?,
+            p=?,q=?, divergence=?, z_score=?, percent_genome_enriched=?, input_scaling_factor=?,
+            differential_percentage_enrichment=?, differential_percentage_enrichment=?
             WHERE job_id = ? """
             cur.executemany(query,update)
 
